@@ -1,0 +1,79 @@
+# Environment variables
+.env
+.env.local
+.env.*.local
+docker-config.json
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+logs/
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Dependency directories
+node_modules/
+
+# Optional npm cache directory
+.npm
+
+# Optional eslint cache
+.eslintcache
+
+# Coverage directory used by tools like istanbul
+coverage/
+*.lcov
+
+# nyc test coverage
+.nyc_output
+
+# Deno
+.deno/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Build output
+dist/
+build/
+out/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.temp
+
+# Lock files (if using npm/yarn alongside Deno)
+package-lock.json
+yarn.lock
+
+# Test artifacts
+test-results/
+.test-data/
+
+# SQLite database files
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+data/
