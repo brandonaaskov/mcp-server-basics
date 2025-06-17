@@ -447,8 +447,95 @@ function generateClientSecret(length: number): string {
   return result
 }
 
-// Main server
-Deno.serve({ port: PORT, hostname: BIND_ADDRESS }, async (req) => {
+// Main stdio server loop
+async function runStdioServer() {
+  const decoder = new TextDecoder()
+  const encoder = new TextEncoder()
+
+  // Log to stderr to avoid interfering with JSON-RPC messages
+  console.error("MCP Server (stdio transport) started")
+  console.error(`Protocol version: 2025-03-26`)
+
+  // Read from stdin line by line
+  const stdin = Deno.stdin.readable
+  const reader = stdin.getReader()
+  let buffer = ""
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read()
+
+      if (done) {
+        break
+      }
+
+      // Decode the chunk and add to buffer
+      buffer += decoder.decode(value, { stream: true })
+
+      // Process complete lines
+      const lines = buffer.split("\n")
+      buffer = lines.pop() || "" // Keep incomplete line in buffer
+
+      for (const line of lines) {
+        const trimmedLine = line.trim()
+        if (!trimmedLine) continue
+
+        try {
+          // Parse JSON-RPC message
+          const message = JSON.parse(trimmedLine)
+
+          // Handle the message
+          const response = await handleJsonRpc(message)
+
+          // Write response to stdout if there is one
+          if (response) {
+            await Deno.stdout.write(
+              encoder.encode(JSON.stringify(response) + "\n"),
+            )
+          }
+        } catch (error) {
+          // Log parsing errors to stderr
+          console.error("Error parsing JSON-RPC message:", error)
+
+          // Send parse error response
+          const errorResponse = {
+            jsonrpc: "2.0",
+            error: {
+              code: -32700,
+              message: "Parse error",
+            },
+          }
+          await Deno.stdout.write(
+            encoder.encode(JSON.stringify(errorResponse) + "\n"),
+          )
+        }
+      }
+    }
+  } catch (error) {
+    console.error("Fatal error in stdio server:", error)
+  } finally {
+    reader.releaseLock()
+  }
+}
+
+// Main HTTP server function
+function runHttpServer() {
+  console.log(`MCP Server running on http://${BIND_ADDRESS}:${PORT}`)
+  console.log(`MCP endpoint: ${BASE_URL}/mcp`)
+  console.log(`Protocol version: 2025-03-26`)
+  console.log(`Transport: Streamable HTTP`)
+
+  // Send tool list change notification after server startup
+  // This ensures Claude Desktop refreshes the tool list on connection
+  setTimeout(() => {
+    notifyToolListChanged()
+  }, 1000) // Send notification 1 second after startup
+
+  Deno.serve({ port: PORT, hostname: BIND_ADDRESS }, handleHttpRequest)
+}
+
+// Extract HTTP request handler
+async function handleHttpRequest(req: Request): Promise<Response> {
   const url = new URL(req.url)
 
   // Handle CORS preflight for all paths
@@ -842,15 +929,21 @@ Deno.serve({ port: PORT, hostname: BIND_ADDRESS }, async (req) => {
     status: 200,
     headers: corsHeaders,
   })
-})
+}
 
-console.log(`MCP Server running on http://${BIND_ADDRESS}:${PORT}`)
-console.log(`MCP endpoint: ${BASE_URL}/mcp`)
-console.log(`Protocol version: 2025-03-26`)
-console.log(`Transport: Streamable HTTP`)
+// Main entry point
+if (import.meta.main) {
+  // Simple detection: if stdin is not a terminal, assume stdio mode
+  // This works because:
+  // - When run normally in terminal: stdin.isTerminal() = true -> HTTP mode
+  // - When piped (echo "..." | deno run): stdin.isTerminal() = false -> stdio mode
+  // - When run by Claude Code with stdin/stdout: stdin.isTerminal() = false -> stdio mode
 
-// Send tool list change notification after server startup
-// This ensures Claude Desktop refreshes the tool list on connection
-setTimeout(() => {
-  notifyToolListChanged()
-}, 1000) // Send notification 1 second after startup
+  if (Deno.stdin.isTerminal()) {
+    // HTTP mode - normal terminal execution
+    await runHttpServer()
+  } else {
+    // stdio mode - piped input or subprocess with stdin/stdout
+    await runStdioServer()
+  }
+}

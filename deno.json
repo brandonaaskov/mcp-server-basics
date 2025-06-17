@@ -2,8 +2,6 @@
   "tasks": {
     "dev": "deno run --allow-net --allow-read --allow-write --allow-env --allow-ffi --env --watch src/server.ts",
     "start": "deno run --allow-net --allow-read --allow-write --allow-env --allow-ffi --env src/server.ts",
-    "dev:stdio": "deno run --allow-read --allow-write --allow-env --allow-ffi --env --watch src/stdio-server.ts",
-    "start:stdio": "deno run --allow-read --allow-write --allow-env --allow-ffi --env src/stdio-server.ts",
     "test": "deno test --allow-net --allow-read --allow-write --allow-env --allow-ffi --allow-run src/",
     "check": "deno check src/",
     "fmt": "deno fmt src/",
